@@ -11,6 +11,10 @@
 #define PLAY_LOSE 11
 #define PIN_CLK 9
 #define PIN_DIO 8
+#define Trigger 3
+#define Echo 2
+#define INIT 12
+
 
 TMRpcm tmrpcm;
 SevenSegmentTM1637 display(PIN_CLK, PIN_DIO);
@@ -93,11 +97,14 @@ void win(){
   }
 }
 void lose(){
-  // play lose music
-  digitalWrite(PLAY_LOSE, HIGH);
+
+
+  
 
   DELAY = 1;
   if ( gameDuration == 0 ) {
+      // play lose music
+  digitalWrite(PLAY_LOSE, HIGH);
     display.print("XXXX");
     display.blink();
     delay(10000);
@@ -123,18 +130,58 @@ int checkWires() {
     win();
   }
   
+  
   for (int i = 0; i < WIRES_NUMBER; i++ ) {
     if (i != WIN_WIRE && wiresValues[i] == 1 ) {
-      lose();
+
+        lose();
+     
     }
   }
   return(0);
+}
+
+int calcDistance() {
+  
+  long t; //timepo que demora en llegar el eco
+  long d; //distancia en centimetros
+
+  digitalWrite(Trigger, HIGH);
+  delayMicroseconds(10);          //Enviamos un pulso de 10us
+  digitalWrite(Trigger, LOW);
+  
+  t = pulseIn(Echo, HIGH); //obtenemos el ancho del pulso
+  d = t/59;             //escalamos el tiempo a una distancia en cm
+  
+  Serial.print("Distancia: ");
+  Serial.print(d);      //Enviamos serialmente el valor de la distancia
+  Serial.print("cm");
+  Serial.println();
+  return (d);
 }
 
 
 // run setup code
 void setup()
 {
+  pinMode(PLAY_LOSE, OUTPUT);
+  pinMode(PLAY_WIN, OUTPUT);
+  pinMode(INIT, OUTPUT);
+  pinMode(4, INPUT);
+  pinMode(5, INPUT);
+  pinMode(6, INPUT);
+  pinMode(7, INPUT);
+
+
+  pinMode(Trigger, OUTPUT); //pin como salida
+  pinMode(Echo, INPUT);  //pin como entrada
+  digitalWrite(Trigger, LOW);//Inicializamos el pin con 0
+
+  digitalWrite(PLAY_WIN, LOW);
+  digitalWrite(PLAY_LOSE, LOW);
+  digitalWrite(INIT, LOW);
+
+
   Serial.begin(9600);
   display.begin();
   display.setBacklight(100); // set the brightness to 100 %
@@ -144,18 +191,21 @@ void setup()
 void loop()
 {
   bool colonOn = false;
-
-  do
-  {
-    display.print(parseTime(gameDuration));
-    display.setColonOn(colonOn);
-
-    readWires();
-    printWires();
-    checkWires();
-
-    colonOn = !colonOn;
-    gameDuration--;
-    delay(DELAY);
-  } while (gameDuration > 0);
+  int distance = calcDistance();
+  
+  if (distance > 10) {
+    digitalWrite(INIT, HIGH);
+    while (true) {
+      display.print(parseTime(gameDuration));
+      display.setColonOn(colonOn);
+  
+      readWires();
+      printWires();
+      checkWires();
+  
+      colonOn = !colonOn;
+      gameDuration--;
+      delay(DELAY);
+    }
+  }
 };
